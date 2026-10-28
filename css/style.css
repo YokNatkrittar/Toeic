@@ -52,6 +52,12 @@ a { color: var(--accent); }
 .brand { display: flex; align-items: baseline; gap: 10px; }
 .brand b { font-family: var(--display); font-size: 1.2rem; letter-spacing: .02em; }
 .dday { font-family: var(--mono); font-size: .8rem; background: var(--pencil-soft); color: var(--ink); border: 1px solid var(--pencil); padding: 1px 8px; border-radius: 99px; white-space: nowrap; }
+.sync { font-size: .75rem; color: var(--muted); white-space: nowrap; display: inline-flex; align-items: center; gap: 5px; }
+.sync::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--line); }
+.sync[data-state="ok"]::before { background: var(--good); }
+.sync[data-state="sync"]::before { background: var(--pencil); }
+.sync[data-state="err"]::before { background: var(--bad); }
+.brand { flex-wrap: wrap; }
 .tabs { display: flex; gap: 4px; margin-left: auto; overflow-x: auto; scrollbar-width: none; }
 .tabs a { text-decoration: none; color: var(--muted); padding: 6px 12px; border-radius: 8px; white-space: nowrap; font-weight: 500; }
 .tabs a[aria-current="page"] { background: var(--ink); color: var(--paper); }

@@ -6,7 +6,73 @@
   const LET = ["A", "B", "C", "D"];
   const store = {
     get(k, d) { try { const v = localStorage.getItem("toeic17:" + k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } },
-    set(k, v) { try { localStorage.setItem("toeic17:" + k, JSON.stringify(v)); } catch (e) { /* storage unavailable */ } }
+    set(k, v) {
+      try { localStorage.setItem("toeic17:" + k, JSON.stringify(v)); } catch (e) { /* storage unavailable */ }
+      if (Cloud.KEYS.includes(k)) Cloud.schedule();
+    }
+  };
+
+  /* ---------------- cloud sync: progress follows the signed-in viewer across devices ---------------- */
+  const Cloud = {
+    KEYS: ["tasks", "known", "history", "exam"],
+    ref: null, timer: null, writing: Promise.resolve(), lastJson: null, ready: false,
+    snapshot() { const o = {}; this.KEYS.forEach((k) => { const v = store.get(k, null); if (v != null) o[k] = v; }); return o; },
+    status(state) {
+      const el = $("#sync");
+      if (!el) return;
+      const t = { off: ["บันทึกในเครื่องนี้", "ความคืบหน้าเก็บไว้ในเบราว์เซอร์นี้เท่านั้น (ต้องลงชื่อเข้า claude.ai เพื่อซิงก์ข้ามเครื่อง)"],
+        sync: ["กำลังซิงก์…", "กำลังบันทึกความคืบหน้าขึ้นบัญชีของคุณ"], ok: ["ซิงก์แล้ว", "ความคืบหน้าบันทึกในบัญชีของคุณ เปิดเครื่องไหนก็ต่อจากเดิมได้"],
+        err: ["ซิงก์ไม่สำเร็จ", "บันทึกในเครื่องนี้ไว้แล้ว จะลองซิงก์ใหม่เมื่อมีการเปลี่ยนแปลงครั้งถัดไป"] }[state];
+      el.textContent = t[0]; el.title = t[1]; el.dataset.state = state;
+    },
+    async init() {
+      this.status("off");
+      try {
+        if (!window.claude || !window.claude.use) return;
+        const [db, user] = await Promise.all([window.claude.use("db"), window.claude.use("user")]);
+        if (!db || !user) return;
+        const id = await user.id();
+        if (!id) return;
+        this.ref = db.doc("data/users/" + id + "/progress");
+        this.status("sync");
+        this.ref.onSnapshot((snap) => this.onRemote(snap), () => this.status("err"));
+      } catch (e) { this.ref = null; this.status("off"); }
+    },
+    onRemote(snap) {
+      if (snap.metadata && snap.metadata.hasPendingWrites) return;
+      let remote = {};
+      if (snap.exists) { try { remote = JSON.parse(snap.data().json || "{}"); } catch (e) { remote = {}; } }
+      const json = snap.exists ? snap.data().json : null;
+      if (this.ready && json === this.lastJson) return;
+      const local = this.snapshot();
+      // first contact merges both sides so nothing done offline is lost; later updates from other devices win
+      const merged = this.ready ? { ...local, ...remote } : {
+        tasks: { ...(local.tasks || {}), ...(remote.tasks || {}) },
+        known: { ...(local.known || {}), ...(remote.known || {}) },
+        history: [...(remote.history || []), ...(local.history || [])].filter((h, i, a) => a.findIndex((x) => x.t === h.t) === i).sort((a, b) => a.t - b.t).slice(-30),
+        exam: remote.exam || local.exam
+      };
+      Object.keys(merged).forEach((k) => { if (merged[k] != null) { try { localStorage.setItem("toeic17:" + k, JSON.stringify(merged[k])); } catch (e) { /* storage unavailable */ } } });
+      const first = !this.ready;
+      this.ready = true;
+      this.lastJson = json;
+      if (first && JSON.stringify(merged) !== JSON.stringify(remote)) this.schedule(0); else this.status("ok");
+      updateDday();
+      refreshView();
+    },
+    schedule(delay = 1200) {
+      if (!this.ref || !this.ready) return;
+      clearTimeout(this.timer);
+      this.status("sync");
+      this.timer = setTimeout(() => {
+        this.writing = this.writing.then(async () => {
+          const json = JSON.stringify(this.snapshot());
+          if (json === this.lastJson) { this.status("ok"); return; }
+          try { await this.ref.set({ json, updatedAt: Date.now() }); this.lastJson = json; this.status("ok"); }
+          catch (e) { this.status("err"); }
+        });
+      }, delay);
+    }
   };
   const view = $("#view");
 
@@ -640,6 +706,18 @@
   }
 
   /* ---------------- boot ---------------- */
+  function refreshView() {
+    const name = (location.hash || "#plan").slice(1);
+    if (name === "sim" && ex) return; // never disturb an exam in progress
+    if (name === "tips") return;
+    const y = window.scrollY;
+    const open = $$("details.day[open]").map((d) => d.dataset.day);
+    (ROUTES[name] || renderPlan)();
+    open.forEach((d) => { const el = $(`details.day[data-day="${d}"]`); if (el) el.open = true; });
+    window.scrollTo(0, y);
+  }
+
   updateDday();
   route();
+  Cloud.init();
 })();
