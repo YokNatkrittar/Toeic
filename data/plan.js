@@ -3,23 +3,24 @@ window.PLAN = [
 { day: 1, title: "รู้จักข้อสอบ + Word forms", focus: "Overview · Part 5", vocab: 1, tasks: [
   [15, "อ่านแท็บ \"เทคนิค\" หัวข้อ \"ภาพรวมข้อสอบ\" ให้จบ: 200 ข้อ, 2 ชั่วโมง, Listening 100 / Reading 100"],
   [30, "Flashcard ชุด 1 (Office & Meetings) — 40 คำ ท่องจนกด \"จำได้\" ได้อย่างน้อย 30 คำ"],
-  [25, "Grammar: ชนิดของคำ (noun/verb/adj/adv) และคำลงท้าย -tion, -ment, -ive, -ly, -able"],
+  [25, "Grammar: ชนิดของคำ (noun/verb/adj/adv) และคำลงท้าย -tion, -ment, -ive, -ly, -able", "wordform"],
   [20, "Simulator → ฝึกรายพาร์ต → Part 5 ทำ 30 ข้อ จับเวลาเอง แล้วอ่านคำอธิบายข้อที่ผิด"]],
   tip: "Part 5 ราว 30-40% ถามแค่ชนิดของคำ ดูคำหน้า-หลังช่องว่างก่อน ไม่ต้องแปลทั้งประโยค" },
 { day: 2, title: "Part 1 รูปภาพ + Tense", focus: "Part 1 · Part 5", vocab: 2, tasks: [
   [20, "เทคนิค Part 1: ดูภาพก่อนเสียงพูด เดาคำกริยา/คำนามที่น่าจะได้ยิน"],
   [15, "Simulator → ฝึก Part 1 (6 ข้อ) ฟังซ้ำแล้วอ่าน transcript"],
   [30, "Flashcard ชุด 2 (HR) + ทบทวนชุด 1 ที่ยังจำไม่ได้"],
-  [25, "Grammar: 12 tenses ที่ออกบ่อย (Present Simple / Past / Present Perfect / Future) + คำบอกเวลา"]],
+  [25, "Grammar: 12 tenses ที่ออกบ่อย (Present Simple / Past / Present Perfect / Future) + คำบอกเวลา", "tense"]],
   tip: "Part 1 ระวัง \"is being + V3\" (กำลังถูกทำ ต้องมีคนทำอยู่ในภาพ) กับ \"has been + V3\" (ทำเสร็จแล้ว ไม่ต้องมีคน)" },
 { day: 3, title: "Part 2 ถาม-ตอบ", focus: "Part 2", vocab: 3, tasks: [
   [20, "เทคนิค Part 2: จับคำแรกของคำถาม (Who/When/Where/Why/How) แล้วตัดตัวเลือกที่ตอบไม่ตรง"],
   [25, "Simulator → ฝึก Part 2 (25 ข้อ) ครั้งแรกฟังอย่างเดียว ไม่ดู transcript"],
   [30, "Flashcard ชุด 3 (Finance)"],
-  [15, "ฟังข้อที่ผิดซ้ำ จดคำที่ฟังไม่ออก แล้วพูดตาม (shadowing) 3 รอบ"]],
+  [15, "ฟังข้อที่ผิดซ้ำ จดคำที่ฟังไม่ออก แล้วพูดตาม (shadowing) 3 รอบ"],
+  [15, "Grammar: Active / Passive และการผันกริยาตามประธาน", "voice"]],
   tip: "ตัวเลือกที่มีคำเสียงคล้ายคำถาม (เช่น copy/coffee) มักผิด ส่วนคำตอบอ้อม ๆ เช่น \"I'm not sure\" / \"Let me check\" มักถูก" },
 { day: 4, title: "Preposition vs Conjunction", focus: "Part 5 · Part 2", vocab: 4, tasks: [
-  [30, "Grammar: despite/although, due to/because, during/while — ดูว่าหลังช่องว่างเป็นนามหรือประโยค"],
+  [30, "Grammar: despite/although, due to/because, during/while — ดูว่าหลังช่องว่างเป็นนามหรือประโยค", "prepconj"],
   [30, "Flashcard ชุด 4 (Marketing)"],
   [15, "ทำ Part 5 รอบสองเฉพาะข้อเรื่องคำเชื่อม (101-130) โดยไม่ดูเฉลย"],
   [15, "ฟัง Part 2 อีกรอบ ตั้งเป้าถูกเพิ่มขึ้น 3 ข้อ"]],
@@ -28,12 +29,12 @@ window.PLAN = [
   [20, "เทคนิค Part 3: อ่านคำถาม 3 ข้อก่อนเสียงเริ่ม ขีดเส้นใต้ keyword"],
   [30, "Simulator → ฝึก Part 3 (ชุด 32-52) ตอบระหว่างฟังเลย"],
   [30, "Flashcard ชุด 5 (Purchasing & Shipping)"],
-  [10, "Grammar: Relative pronoun (who / which / that / whose / whom)"]],
+  [10, "Grammar: Relative pronoun (who / which / that / whose / whom)", "relative"]],
   tip: "ลำดับคำตอบมักเรียงตามบทสนทนา: ข้อแรกมักอยู่ช่วงต้น ข้อสุดท้าย (\"What will the man do next?\") อยู่ท้ายบทสนทนา" },
 { day: 6, title: "Part 3 กราฟิก + Comparison", focus: "Part 3 · Part 5", vocab: 6, tasks: [
   [30, "Simulator → ฝึก Part 3 (ชุด 53-70) รวมโจทย์กราฟิกและ \"What does the woman mean when she says...\""],
   [30, "Flashcard ชุด 6 (Contracts)"],
-  [20, "Grammar: ขั้นกว่า/ขั้นสุด, much/far + -er, gerund vs infinitive (enjoy -ing, plan to)"],
+  [20, "Grammar: ขั้นกว่า/ขั้นสุด, much/far + -er, gerund vs infinitive (enjoy -ing, plan to)", "compger"],
   [10, "ทบทวนการ์ดที่กด \"ยังไม่จำ\" ทั้งหมด"]],
   tip: "โจทย์กราฟิก: คำตอบไม่ใช่ตัวเลข/ชื่อที่พูดออกมาตรง ๆ แต่ต้องโยงข้อมูลในภาพกับสิ่งที่ได้ยิน" },
 { day: 7, title: "สอบ Listening เต็มพาร์ต", focus: "Listening (45 นาที)", vocab: 0, tasks: [
@@ -45,13 +46,13 @@ window.PLAN = [
   [20, "เทคนิค Part 4: แยกประเภท talk (voicemail, announcement, tour, ad, news) แต่ละแบบมีโครงสร้างตายตัว"],
   [30, "Simulator → ฝึก Part 4 (30 ข้อ)"],
   [30, "Flashcard ชุด 7 (Travel)"],
-  [10, "Grammar: If-clause type 1-3 และ Participle (-ing / -ed adjective)"]],
+  [10, "Grammar: If-clause type 1-3 และ Participle (-ing / -ed adjective)", "ifpart"]],
   tip: "ประโยคแรกของ talk มักบอก ผู้พูดเป็นใคร/พูดที่ไหน/จุดประสงค์ ส่วนประโยคสุดท้ายมักบอก \"สิ่งที่ผู้ฟังต้องทำ\"" },
 { day: 9, title: "Part 6 เติมข้อความ", focus: "Part 6", vocab: 8, tasks: [
   [20, "เทคนิค Part 6: อ่านทั้งย่อหน้า ไม่ใช่อ่านแค่ประโยคที่มีช่องว่าง"],
   [25, "Simulator → ฝึก Part 6 (16 ข้อ) จับเวลา 10 นาที"],
   [30, "Flashcard ชุด 8 (Dining & Hotel)"],
-  [15, "Grammar: คำเชื่อมระดับประโยค (however, therefore, in addition, as a result)"]],
+  [15, "Grammar: คำเชื่อมระดับประโยค (however, therefore, in addition, as a result)", "connector"]],
   tip: "ข้อแทรกประโยค: ดูประโยคก่อนและหลังช่องว่าง ตัวเลือกที่ถูกต้องต้องมีคำโยง (this, these, also, however) ที่เข้ากับบริบท" },
 { day: 10, title: "Part 7 Single passage", focus: "Part 7", vocab: 9, tasks: [
   [20, "เทคนิค Part 7: อ่านคำถามก่อน แล้ว scan หา keyword ในบทความ"],
@@ -76,7 +77,7 @@ window.PLAN = [
   [30, "ทำข้อผิดจาก Full Test ซ้ำ (โหมดฝึกรายพาร์ต) โดยไม่ดูเฉลยก่อน"],
   [30, "Flashcard ชุด 12 (Events & Media)"],
   [20, "Shadowing: เลือก 2 บทสนทนา Part 3 พูดตามทีละประโยค"],
-  [10, "Grammar wrap-up: ตาราง word family (decide-decision-decisive-decisively)"]],
+  [10, "Grammar wrap-up: ตาราง word family (decide-decision-decisive-decisively)", "wordform"]],
   tip: "ฟังแล้วพูดตามช่วยให้ฟังเร็วขึ้นกว่าการฟังเฉย ๆ เพราะสมองจะชินกับจังหวะและเสียงเชื่อมคำ" },
 { day: 15, title: "คำศัพท์กริยาหลัก + ทำซ้ำ", focus: "Vocab · Part 5/6", vocab: 13, tasks: [
   [30, "Flashcard ชุด 13 (Key Verbs) — คำเหล่านี้ออกบ่อยมากใน Part 5"],

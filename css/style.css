@@ -209,3 +209,9 @@ input[type="range"] { padding: 0; }
 .tips { columns: 2 320px; column-gap: 16px; }
 .tips .panel { break-inside: avoid; margin-bottom: 16px; }
 .tips ul { margin: 10px 0 0; padding-left: 1.1em; display: flex; flex-direction: column; gap: 6px; }
+
+/* grammar */
+a.chip { text-decoration: none; color: var(--ink); }
+a.chip[aria-pressed="true"] { color: var(--paper); }
+.lesson-link { font-size: .85rem; white-space: nowrap; }
+.glist { margin: 0; padding-left: 1.1em; display: flex; flex-direction: column; gap: 6px; }

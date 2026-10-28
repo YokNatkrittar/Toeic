@@ -150,13 +150,15 @@
   Speech.init();
 
   /* ---------------- router ---------------- */
-  const ROUTES = { plan: renderPlan, cards: renderCards, sim: renderSim, tips: renderTips };
+  const ROUTES = { plan: renderPlan, cards: renderCards, grammar: renderGrammar, sim: renderSim, tips: renderTips };
   let cleanup = null;
+  // "#g-<lesson id>" opens one grammar lesson directly (linked from plan tasks)
+  const routeName = () => { const n = (location.hash || "#plan").slice(1); return n.startsWith("g-") ? "grammar" : ROUTES[n] ? n : "plan"; };
   function route() {
-    const name = (location.hash || "#plan").slice(1);
-    const fn = ROUTES[name] || renderPlan;
+    const name = routeName();
+    const fn = ROUTES[name];
     if (cleanup) { cleanup(); cleanup = null; }
-    $$(".tabs a").forEach((a) => a.setAttribute("aria-current", a.getAttribute("href") === "#" + (ROUTES[name] ? name : "plan") ? "page" : "false"));
+    $$(".tabs a").forEach((a) => a.setAttribute("aria-current", a.getAttribute("href") === "#" + name ? "page" : "false"));
     fn();
     setHdr();
     window.scrollTo(0, 0);
@@ -207,7 +209,7 @@
         <span class="sum-title"><b>${esc(d.title)}</b><span class="muted small">${esc(d.focus)}</span></span>
         <span class="prog">${n}/${d.tasks.length}</span></summary>
       <div class="body">
-        ${d.tasks.map((t, i) => `<label class="task ${done[d.day + "-" + i] ? "checked" : ""}"><input type="checkbox" id="t${d.day}-${i}" data-task="${d.day}-${i}" ${done[d.day + "-" + i] ? "checked" : ""}><span>${esc(t[1])}</span><span class="min">${t[0] ? t[0] + " น." : ""}</span></label>`).join("")}
+        ${d.tasks.map((t, i) => `<label class="task ${done[d.day + "-" + i] ? "checked" : ""}"><input type="checkbox" id="t${d.day}-${i}" data-task="${d.day}-${i}" ${done[d.day + "-" + i] ? "checked" : ""}><span>${esc(t[1])}${t[2] ? ` <a class="lesson-link" href="#g-${t[2]}">เปิดบทเรียน →</a>` : ""}</span><span class="min">${t[0] ? t[0] + " น." : ""}</span></label>`).join("")}
         <p class="tip">${esc(d.tip)}</p>
         <div class="row">${vocab}<a class="btn" href="#sim">ไป Simulator</a></div>
       </div></details>`;
@@ -694,6 +696,37 @@
     }).join("");
   }
 
+  /* ================= GRAMMAR ================= */
+  const gq = {}; // lesson quiz answers for this visit: "lessonId-i" -> chosen index
+  function renderGrammar() {
+    const h = (location.hash || "").slice(1);
+    const id = h.startsWith("g-") ? h.slice(2) : store.get("lesson", GRAMMAR[0].id);
+    const L = GRAMMAR.find((x) => x.id === id) || GRAMMAR[0];
+    store.set("lesson", L.id);
+    const block = (b) => b.list
+      ? `<div class="panel stack" style="gap:6px"><h3>${esc(b.h)}</h3><ul class="glist">${b.list.map((i) => `<li>${esc(i)}</li>`).join("")}</ul></div>`
+      : `<div class="panel stack" style="gap:8px"><h3>${esc(b.h)}</h3><div class="tbl-wrap"><table class="vlist"><thead><tr>${b.head.map((x) => `<th>${esc(x)}</th>`).join("")}</tr></thead><tbody>${b.rows.map((r) => `<tr>${r.map((c) => `<td>${esc(c)}</td>`).join("")}</tr>`).join("")}</tbody></table></div></div>`;
+    const quiz = L.quiz.map((q, i) => {
+      const k = L.id + "-" + i, pick = gq[k];
+      return `<div class="qblock"><div class="qtext"><span class="qnum">${i + 1}.</span><span>${esc(q.text)}</span></div>
+        <div class="opts">${q.opts.map((o, j) => `<button class="opt ${pick != null ? (j === q.ans ? "right" : j === pick ? "wrong" : "") : ""}" data-gq="${k}" data-j="${j}" aria-pressed="${pick === j}"><span class="bub">${LET[j]}</span><span>${esc(o)}</span></button>`).join("")}</div>
+        ${pick != null ? `<p class="ex">${pick === q.ans ? "ถูก · " : "ยังไม่ถูก · "}${esc(q.ex)}</p>` : ""}</div>`;
+    }).join("");
+    view.innerHTML = `<div class="wrap stack">
+      <div class="stack" style="gap:6px"><span class="eyebrow">ไวยากรณ์สำหรับ Part 5-6 · ${GRAMMAR.length} บท</span><h2>${esc(L.title)}</h2>
+        <p class="muted small">ใช้ในแผนวันที่ ${L.days.join(", ")}</p></div>
+      <div class="sets">${GRAMMAR.map((x) => `<a class="chip" href="#g-${x.id}" aria-pressed="${x.id === L.id}">${esc(x.title)}</a>`).join("")}</div>
+      <p class="tip">${esc(L.intro)}</p>
+      ${L.blocks.map(block).join("")}
+      <div class="panel"><h3>ลองทำ</h3>${quiz}</div>
+      <div class="row"><a class="btn" href="#plan">กลับแผนติว</a><a class="btn" href="#sim">ฝึก Part 5 ต่อใน Simulator</a></div></div>`;
+    $$("[data-gq]").forEach((b) => b.onclick = () => {
+      if (gq[b.dataset.gq] != null) return;
+      gq[b.dataset.gq] = +b.dataset.j;
+      const y = window.scrollY; renderGrammar(); window.scrollTo(0, y);
+    });
+  }
+
   /* ================= TIPS ================= */
   function renderTips() {
     view.innerHTML = `<div class="wrap stack">
@@ -707,9 +740,9 @@
 
   /* ---------------- boot ---------------- */
   function refreshView() {
-    const name = (location.hash || "#plan").slice(1);
+    const name = routeName();
     if (name === "sim" && ex) return; // never disturb an exam in progress
-    if (name === "tips") return;
+    if (name === "tips" || name === "grammar") return;
     const y = window.scrollY;
     const open = $$("details.day[open]").map((d) => d.dataset.day);
     (ROUTES[name] || renderPlan)();
