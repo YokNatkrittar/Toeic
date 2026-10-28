@@ -222,7 +222,8 @@
   /* ================= FLASHCARDS ================= */
   const ALLWORDS = [];
   VOCAB.sort((a, b) => a.set - b.set).forEach((s) => s.words.forEach((w) => ALLWORDS.push({ w: w[0], pos: w[1], th: w[2], ex: w[3], set: s.set })));
-  const fc = { idx: 0, flipped: false, mode: "card", shuffle: false, q: "", order: null };
+  const fc = { idx: 0, flipped: false, mode: "card", shuffle: false, q: "", order: null, qz: null, hits: {} };
+  const REVIEW_HITS = 2; // correct answers in a row needed for a word to leave the review box
 
   function deckWords() {
     const deck = store.get("deck", "1");
@@ -255,19 +256,31 @@
       return `<button class="chip" aria-pressed="${String(deck) === String(s.set)}" data-deck="${s.set}" title="${esc(s.topic)}">${s.set} · ${k}/${s.words.length}</button>`;
     }).join("");
     const cur = VOCAB.find((s) => String(s.set) === String(deck));
+    const due = ALLWORDS.filter((x) => known[x.w] === 0);
+    const reviewBox = `<section class="panel review-box ${deck === "review" ? "active" : ""}" aria-label="คำที่ต้องทวน">
+      <div class="row" style="justify-content:space-between;align-items:baseline"><h3>คำที่ยังจำไม่ได้ <span class="rcount">${reviewN}</span></h3>
+        <span class="muted small">ตอบถูก ${REVIEW_HITS} ครั้งติดกันในแบบทดสอบ หรือกด "จำได้" คำจะออกจากกล่องนี้</span></div>
+      ${reviewN ? `<div class="rwords">${due.slice(0, 12).map((x) => `<span>${esc(x.w)}</span>`).join("")}${reviewN > 12 ? `<span class="muted">+${reviewN - 12}</span>` : ""}</div>
+        <div class="row"><button class="btn primary" id="rQuiz">ทดสอบเลือกคำแปล</button><button class="btn" id="rCard">ทวนด้วยการ์ด</button><button class="btn" id="rList">ดูรายการ</button></div>`
+        : `<p class="muted small">ยังไม่มีคำค้าง ระหว่างท่องการ์ด กด "ยังไม่จำ" หรือทำแบบทดสอบของชุดไหนก็ได้ คำที่ตอบผิดจะมารวมอยู่ที่นี่</p>`}
+    </section>`;
     view.innerHTML = `<div class="wrap stack">
       <div class="stack" style="gap:6px"><span class="eyebrow">คำศัพท์ ${ALLWORDS.length} คำ · 15 ชุด</span>
         <h2>${cur ? `ชุด ${cur.set}: ${esc(cur.topic)} <span class="muted">(${esc(cur.th)})</span>` : deck === "review" ? "คำที่ยังจำไม่ได้" : "ทุกคำ"}</h2>
         <p class="muted small">จำได้แล้ว ${knownN} คำ · ยังไม่จำ ${reviewN} คำ</p></div>
-      <div class="sets">${chips}<button class="chip" data-deck="review" aria-pressed="${deck === "review"}">ยังไม่จำ (${reviewN})</button><button class="chip" data-deck="all" aria-pressed="${deck === "all"}">ทั้งหมด</button></div>
-      <div class="row"><button class="chip" id="mCard" aria-pressed="${fc.mode === "card"}">การ์ด</button><button class="chip" id="mList" aria-pressed="${fc.mode === "list"}">รายการ</button>
+      ${reviewBox}
+      <div class="sets">${chips}<button class="chip" data-deck="all" aria-pressed="${deck === "all"}">ทั้งหมด</button></div>
+      <div class="row"><button class="chip" id="mCard" aria-pressed="${fc.mode === "card"}">การ์ด</button><button class="chip" id="mQuiz" aria-pressed="${fc.mode === "quiz"}">ทดสอบ</button><button class="chip" id="mList" aria-pressed="${fc.mode === "list"}">รายการ</button>
         <button class="chip" id="mShuf" aria-pressed="${fc.shuffle}">สุ่มลำดับ</button></div>
       <div id="fcBody"></div></div>`;
     $$("[data-deck]").forEach((b) => b.addEventListener("click", () => { store.set("deck", b.dataset.deck); fc.idx = 0; fc.flipped = false; renderCards(); }));
+    const openReview = (mode) => { store.set("deck", "review"); fc.mode = mode; fc.idx = 0; fc.flipped = false; fc.qz = null; renderCards(); $("#fcBody").scrollIntoView({ block: "start" }); };
+    if ($("#rQuiz")) { $("#rQuiz").onclick = () => openReview("quiz"); $("#rCard").onclick = () => openReview("card"); $("#rList").onclick = () => openReview("list"); }
     $("#mCard").onclick = () => { fc.mode = "card"; renderCards(); };
+    $("#mQuiz").onclick = () => { fc.mode = "quiz"; fc.qz = null; renderCards(); };
     $("#mList").onclick = () => { fc.mode = "list"; renderCards(); };
     $("#mShuf").onclick = () => { fc.shuffle = !fc.shuffle; fc.order = null; fc.idx = 0; renderCards(); };
-    if (fc.mode === "card") cardBody(list); else listBody(list);
+    if (fc.mode === "card") cardBody(list); else if (fc.mode === "quiz") quizBody(); else listBody(list);
   }
   function cardBody(list) {
     const body = $("#fcBody");
@@ -310,6 +323,89 @@
     document.addEventListener("keydown", key);
     const prev = cleanup;
     cleanup = () => { document.removeEventListener("keydown", key); if (prev) prev(); };
+  }
+  // Multiple-choice round: wrong answers go back to the end of the queue, so a round ends only when every word was answered correctly once.
+  function newQuiz() {
+    const deck = store.get("deck", "1");
+    const known = store.get("known", {});
+    const pool = deck === "review" ? ALLWORDS.filter((x) => known[x.w] === 0) : deck === "all" ? ALLWORDS.slice() : ALLWORDS.filter((x) => String(x.set) === String(deck));
+    const queue = pool.slice();
+    for (let i = queue.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [queue[i], queue[j]] = [queue[j], queue[i]]; }
+    return { deck, queue: deck === "all" ? queue.slice(0, 40) : queue, i: 0, right: 0, wrong: 0, missed: new Set(), picked: null, opts: null, graduated: 0 };
+  }
+  function quizOptions(it) {
+    const same = ALLWORDS.filter((x) => x.set === it.set && x.th !== it.th);
+    const rest = ALLWORDS.filter((x) => x.th !== it.th);
+    const pick = [];
+    const src = same.length >= 3 ? same : rest;
+    while (pick.length < 3) { const c = src[Math.floor(Math.random() * src.length)]; if (!pick.includes(c) && c.th !== it.th) pick.push(c); }
+    const all = [...pick, it];
+    for (let i = all.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [all[i], all[j]] = [all[j], all[i]]; }
+    return all;
+  }
+  function quizBody() {
+    const body = $("#fcBody");
+    const deck = store.get("deck", "1");
+    if (!fc.qz || fc.qz.deck !== deck) fc.qz = newQuiz();
+    const z = fc.qz;
+    if (!z.queue.length) { body.innerHTML = `<div class="panel muted">ไม่มีคำให้ทดสอบในชุดนี้</div>`; return; }
+    if (z.i >= z.queue.length) {
+      const left = ALLWORDS.filter((x) => store.get("known", {})[x.w] === 0).length;
+      body.innerHTML = `<div class="panel stack quiz-end"><h3>จบรอบแล้ว</h3>
+        <p>ตอบถูกครั้งแรก ${z.right} คำ · ตอบผิดแล้วต้องทำซ้ำ ${z.missed.size} คำ${deck === "review" ? ` · ออกจากกล่องทวน ${z.graduated} คำ` : ""}</p>
+        <p class="muted small">ตอนนี้เหลือคำที่ยังจำไม่ได้ ${left} คำ</p>
+        <div class="row">${left ? `<button class="btn primary" id="again">ทวนคำที่ยังจำไม่ได้อีกรอบ</button>` : ""}${deck !== "review" ? `<button class="btn" id="redo">ทำชุดนี้อีกรอบ</button>` : ""}</div></div>`;
+      const a = $("#again"); if (a) a.onclick = () => { store.set("deck", "review"); fc.qz = null; renderCards(); };
+      const r = $("#redo"); if (r) r.onclick = () => { fc.qz = null; renderCards(); };
+      return;
+    }
+    const it = z.queue[z.i];
+    if (!z.opts) z.opts = quizOptions(it);
+    const done = z.picked != null;
+    const hits = fc.hits[it.w] || 0;
+    body.innerHTML = `<div class="panel stack quiz">
+      <div class="row" style="justify-content:space-between"><span class="card-meta">ข้อ ${z.i + 1} / ${z.queue.length} · ถูก ${z.right} · ผิด ${z.wrong}</span>
+        ${deck === "review" ? `<span class="card-meta">${"●".repeat(Math.min(hits, REVIEW_HITS))}${"○".repeat(Math.max(0, REVIEW_HITS - hits))}</span>` : ""}</div>
+      <div class="bar"><i style="width:${(z.i / z.queue.length * 100).toFixed(1)}%"></i></div>
+      <div class="qword"><span class="pos">${esc(it.pos)}</span><b>${esc(it.w)}</b><button class="speak" id="say" aria-label="ฟังเสียง">🔊</button></div>
+      <div class="opts">${z.opts.map((o, j) => `<button class="opt ${done ? (o === it ? "right" : j === z.picked ? "wrong" : "") : ""}" data-qo="${j}" aria-pressed="${z.picked === j}"><span class="bub">${LET[j]}</span><span>${esc(o.th)}</span></button>`).join("")}</div>
+      ${done ? `<p class="ex">${z.opts[z.picked] === it ? "ถูก" : "ยังไม่ถูก คำนี้จะกลับมาให้ตอบอีกครั้งท้ายรอบ"} · <i>${highlight(it.ex, it.w)}</i></p>
+        <div class="row"><button class="btn primary" id="qNext">ถัดไป →</button></div>` : `<p class="muted small">คีย์ลัด: 1-4 เลือกคำตอบ · Enter ข้อถัดไป</p>`}
+    </div>`;
+    const answer = (j) => {
+      if (z.picked != null) return;
+      z.picked = j;
+      const ok = z.opts[j] === it;
+      const k = store.get("known", {});
+      if (ok) {
+        if (!z.missed.has(it.w)) z.right++;
+        fc.hits[it.w] = (fc.hits[it.w] || 0) + 1;
+        if (k[it.w] === 0) { if (fc.hits[it.w] >= REVIEW_HITS) { k[it.w] = 1; z.graduated++; store.set("known", k); } }
+        else if (k[it.w] !== 1) { k[it.w] = 1; store.set("known", k); }
+      } else {
+        z.wrong++; z.missed.add(it.w); fc.hits[it.w] = 0;
+        z.queue.push(it);
+        if (k[it.w] !== 0) { k[it.w] = 0; store.set("known", k); }
+      }
+      Speech.cancel(); Speech.say(it.w, "W");
+      renderCardsKeep();
+    };
+    const next = () => { z.i++; z.picked = null; z.opts = null; renderCardsKeep(); };
+    $$("[data-qo]", body).forEach((b) => b.onclick = () => answer(+b.dataset.qo));
+    $("#say").onclick = () => { Speech.cancel(); Speech.say(it.w + ". " + it.ex, "W"); };
+    if (done) $("#qNext").onclick = next;
+    const key = (e) => {
+      if (e.target.matches("input, select, textarea")) return;
+      if (!done && /^[1-4]$/.test(e.key)) answer(+e.key - 1);
+      else if (done && (e.key === "Enter" || e.key === "ArrowRight")) { e.preventDefault(); next(); }
+    };
+    document.addEventListener("keydown", key);
+    const prev = cleanup;
+    cleanup = () => { document.removeEventListener("keydown", key); if (prev) prev(); };
+  }
+  function renderCardsKeep() {
+    if (cleanup) { cleanup(); cleanup = null; }
+    const y = window.scrollY; renderCards(); window.scrollTo(0, y);
   }
   function listBody(list) {
     const known = store.get("known", {});

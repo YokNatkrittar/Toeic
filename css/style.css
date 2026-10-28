@@ -215,3 +215,15 @@ a.chip { text-decoration: none; color: var(--ink); }
 a.chip[aria-pressed="true"] { color: var(--paper); }
 .lesson-link { font-size: .85rem; white-space: nowrap; }
 .glist { margin: 0; padding-left: 1.1em; display: flex; flex-direction: column; gap: 6px; }
+
+/* review box + quiz */
+.review-box { display: flex; flex-direction: column; gap: 12px; border-color: var(--pencil); background: linear-gradient(var(--pencil-soft), var(--pencil-soft)) left / 4px 100% no-repeat, var(--surface); }
+.review-box.active { box-shadow: 0 0 0 1px var(--pencil); }
+.rcount { font-family: var(--mono); font-size: .9rem; background: var(--pencil); color: #1b1400; border-radius: 99px; padding: 0 9px; margin-left: 6px; vertical-align: 2px; }
+.rwords { display: flex; flex-wrap: wrap; gap: 6px; }
+.rwords span { font-size: .85rem; border: 1px dashed var(--line); border-radius: 6px; padding: 1px 8px; }
+.quiz { max-width: 620px; margin: 0 auto; width: 100%; }
+.qword { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.qword b { font-family: var(--display); font-size: clamp(1.6rem, 6vw, 2.3rem); }
+.qword .pos { font-family: var(--mono); color: var(--muted); font-size: .85rem; }
+.quiz-end { max-width: 620px; margin: 0 auto; width: 100%; }
