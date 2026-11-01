@@ -80,9 +80,12 @@
           try {
             await this.ref.set({ json, updatedAt: Date.now() });
             this.lastJson = json; this.remote = state; this.status("ok");
-            // one dated copy per day, so a bad day can always be rolled back
+            // one dated copy per day, refreshed at most every 20 minutes, so a bad day can always be rolled back
             const day = new Date().toISOString().slice(0, 10);
-            if (this.backupDay !== day) { this.backupDay = day; await this.backupRef(day).set({ json, updatedAt: Date.now() }); }
+            if (this.backupDay !== day || Date.now() - this.backupAt > 20 * 60000) {
+              this.backupDay = day; this.backupAt = Date.now();
+              await this.backupRef(day).set({ json, updatedAt: Date.now() });
+            }
           } catch (e) { this.status("err"); }
         });
       }, delay);
