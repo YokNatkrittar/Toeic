@@ -33,30 +33,38 @@
         if (!db || !user) return;
         const id = await user.id();
         if (!id) return;
+        this.db = db; this.uid = id;
         this.ref = db.doc("data/users/" + id + "/progress");
         this.status("sync");
         this.ref.onSnapshot((snap) => this.onRemote(snap), () => this.status("err"));
       } catch (e) { this.ref = null; this.status("off"); }
     },
+    // Progress only ever merges: a key is added or changed, never dropped, so an empty or stale copy cannot erase data.
+    merge(a, b) { // b wins on conflicts
+      a = a || {}; b = b || {};
+      return {
+        tasks: { ...(a.tasks || {}), ...(b.tasks || {}) },
+        known: { ...(a.known || {}), ...(b.known || {}) },
+        history: [...(a.history || []), ...(b.history || [])].filter((h, i, arr) => arr.findIndex((x) => x.t === h.t) === i).sort((x, y) => x.t - y.t).slice(-30),
+        exam: b.exam || a.exam
+      };
+    },
+    remote: null,
     onRemote(snap) {
-      if (snap.metadata && snap.metadata.hasPendingWrites) return;
+      const meta = snap.metadata || {};
+      if (meta.hasPendingWrites) return;
+      // a cached first snapshot may say "no document" before the server answers; wait for the real one
+      if (!this.ready && meta.fromCache) return;
       let remote = {};
       if (snap.exists) { try { remote = JSON.parse(snap.data().json || "{}"); } catch (e) { remote = {}; } }
       const json = snap.exists ? snap.data().json : null;
+      this.remote = this.merge(this.remote, remote);
       if (this.ready && json === this.lastJson) return;
-      const local = this.snapshot();
-      // first contact merges both sides so nothing done offline is lost; later updates from other devices win
-      const merged = this.ready ? { ...local, ...remote } : {
-        tasks: { ...(local.tasks || {}), ...(remote.tasks || {}) },
-        known: { ...(local.known || {}), ...(remote.known || {}) },
-        history: [...(remote.history || []), ...(local.history || [])].filter((h, i, a) => a.findIndex((x) => x.t === h.t) === i).sort((a, b) => a.t - b.t).slice(-30),
-        exam: remote.exam || local.exam
-      };
+      const merged = this.merge(this.snapshot(), this.remote);
       Object.keys(merged).forEach((k) => { if (merged[k] != null) { try { localStorage.setItem("toeic17:" + k, JSON.stringify(merged[k])); } catch (e) { /* storage unavailable */ } } });
-      const first = !this.ready;
       this.ready = true;
       this.lastJson = json;
-      if (first && JSON.stringify(merged) !== JSON.stringify(remote)) this.schedule(0); else this.status("ok");
+      if (JSON.stringify(merged) !== JSON.stringify(this.merge({}, remote))) this.schedule(0); else this.status("ok");
       updateDday();
       refreshView();
     },
@@ -66,13 +74,20 @@
       this.status("sync");
       this.timer = setTimeout(() => {
         this.writing = this.writing.then(async () => {
-          const json = JSON.stringify(this.snapshot());
+          const state = this.merge(this.remote, this.snapshot());
+          const json = JSON.stringify(state);
           if (json === this.lastJson) { this.status("ok"); return; }
-          try { await this.ref.set({ json, updatedAt: Date.now() }); this.lastJson = json; this.status("ok"); }
-          catch (e) { this.status("err"); }
+          try {
+            await this.ref.set({ json, updatedAt: Date.now() });
+            this.lastJson = json; this.remote = state; this.status("ok");
+            // one dated copy per day, so a bad day can always be rolled back
+            const day = new Date().toISOString().slice(0, 10);
+            if (this.backupDay !== day) { this.backupDay = day; await this.backupRef(day).set({ json, updatedAt: Date.now() }); }
+          } catch (e) { this.status("err"); }
         });
       }, delay);
-    }
+    },
+    backupRef(day) { return this.db.doc("data/users/" + this.uid + "/backup-" + day); }
   };
   const view = $("#view");
 
