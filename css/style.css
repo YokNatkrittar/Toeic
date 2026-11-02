@@ -227,3 +227,4 @@ a.chip[aria-pressed="true"] { color: var(--paper); }
 .qword b { font-family: var(--display); font-size: clamp(1.6rem, 6vw, 2.3rem); }
 .qword .pos { font-family: var(--mono); color: var(--muted); font-size: .85rem; }
 .quiz-end { max-width: 620px; margin: 0 auto; width: 100%; }
+.rstat { display: flex; flex-direction: column; gap: 2px; }

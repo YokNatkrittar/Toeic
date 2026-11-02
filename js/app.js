@@ -14,7 +14,7 @@
 
   /* ---------------- cloud sync: progress follows the signed-in viewer across devices ---------------- */
   const Cloud = {
-    KEYS: ["tasks", "known", "history", "exam"],
+    KEYS: ["tasks", "known", "history", "exam", "hits", "quizlog"],
     ref: null, timer: null, writing: Promise.resolve(), lastJson: null, ready: false,
     snapshot() { const o = {}; this.KEYS.forEach((k) => { const v = store.get(k, null); if (v != null) o[k] = v; }); return o; },
     status(state) {
@@ -46,7 +46,9 @@
         tasks: { ...(a.tasks || {}), ...(b.tasks || {}) },
         known: { ...(a.known || {}), ...(b.known || {}) },
         history: [...(a.history || []), ...(b.history || [])].filter((h, i, arr) => arr.findIndex((x) => x.t === h.t) === i).sort((x, y) => x.t - y.t).slice(-30),
-        exam: b.exam || a.exam
+        exam: b.exam || a.exam,
+        hits: { ...(a.hits || {}), ...(b.hits || {}) },
+        quizlog: [...(a.quizlog || []), ...(b.quizlog || [])].filter((h, i, arr) => arr.findIndex((x) => x.t === h.t) === i).sort((x, y) => x.t - y.t).slice(-50)
       };
     },
     remote: null,
@@ -240,7 +242,7 @@
   /* ================= FLASHCARDS ================= */
   const ALLWORDS = [];
   VOCAB.sort((a, b) => a.set - b.set).forEach((s) => s.words.forEach((w) => ALLWORDS.push({ w: w[0], pos: w[1], th: w[2], ex: w[3], set: s.set })));
-  const fc = { idx: 0, flipped: false, mode: "card", shuffle: false, q: "", order: null, qz: null, hits: {} };
+  const fc = { idx: 0, flipped: false, mode: "card", shuffle: false, q: "", order: null, qz: null };
   const REVIEW_HITS = 2; // correct answers in a row needed for a word to leave the review box
 
   function deckWords() {
@@ -278,7 +280,7 @@
     const reviewBox = `<section class="panel review-box ${deck === "review" ? "active" : ""}" aria-label="คำที่ต้องทวน">
       <div class="row" style="justify-content:space-between;align-items:baseline"><h3>คำที่ยังจำไม่ได้ <span class="rcount">${reviewN}</span></h3>
         <span class="muted small">ตอบถูก ${REVIEW_HITS} ครั้งติดกันในแบบทดสอบ หรือกด "จำได้" คำจะออกจากกล่องนี้</span></div>
-      ${reviewN ? `<div class="rwords">${due.slice(0, 12).map((x) => `<span>${esc(x.w)}</span>`).join("")}${reviewN > 12 ? `<span class="muted">+${reviewN - 12}</span>` : ""}</div>
+      ${reviewN ? `${reviewStatus(due)}<div class="rwords">${due.slice(0, 12).map((x) => `<span>${esc(x.w)}</span>`).join("")}${reviewN > 12 ? `<span class="muted">+${reviewN - 12}</span>` : ""}</div>
         <div class="row"><button class="btn primary" id="rQuiz">ทดสอบเลือกคำแปล</button><button class="btn" id="rCard">ทวนด้วยการ์ด</button><button class="btn" id="rList">ดูรายการ</button></div>`
         : `<p class="muted small">ยังไม่มีคำค้าง ระหว่างท่องการ์ด กด "ยังไม่จำ" หรือทำแบบทดสอบของชุดไหนก็ได้ คำที่ตอบผิดจะมารวมอยู่ที่นี่</p>`}
     </section>`;
@@ -322,6 +324,7 @@
     const go = (d) => { fc.idx = (fc.idx + d + list.length) % list.length; fc.flipped = false; renderCards(); };
     const mark = (v) => {
       const k = store.get("known", {}); k[it.w] = v; store.set("known", k);
+      if (v === 0) { const h = store.get("hits", {}); if (h[it.w]) { h[it.w] = 0; store.set("hits", h); } }
       if (store.get("deck", "1") === "review" && v === 1) { fc.flipped = false; renderCards(); } else go(1);
     };
     $("#flash").onclick = () => { fc.flipped = !fc.flipped; $("#flash").classList.toggle("flipped", fc.flipped); };
@@ -361,6 +364,14 @@
     for (let i = all.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [all[i], all[j]] = [all[j], all[i]]; }
     return all;
   }
+  function reviewStatus(due) {
+    const h = store.get("hits", {});
+    const half = due.filter((x) => (h[x.w] || 0) >= 1).length;
+    const last = store.get("quizlog", []).slice(-1)[0];
+    const when = last ? new Date(last.t).toLocaleString("th-TH", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) : "";
+    return `<div class="rstat small">${half ? `<span><b>${half}</b> คำตอบถูกแล้ว 1 ครั้ง อีกครั้งเดียวก็ออกจากกล่อง</span>` : ""}
+      ${last ? `<span class="muted">ทดสอบล่าสุด ${when}: ถูกครั้งแรก ${last.right} · ต้องทำซ้ำ ${last.missed} · ออกจากกล่อง ${last.graduated} คำ</span>` : `<span class="muted">ยังไม่เคยทำแบบทดสอบทวนคำ</span>`}</div>`;
+  }
   function quizBody() {
     const body = $("#fcBody");
     const deck = store.get("deck", "1");
@@ -369,6 +380,12 @@
     if (!z.queue.length) { body.innerHTML = `<div class="panel muted">ไม่มีคำให้ทดสอบในชุดนี้</div>`; return; }
     if (z.i >= z.queue.length) {
       const left = ALLWORDS.filter((x) => store.get("known", {})[x.w] === 0).length;
+      if (!z.logged) {
+        z.logged = true;
+        const log = store.get("quizlog", []);
+        log.push({ t: Date.now(), deck, words: z.queue.length - z.wrong, right: z.right, missed: z.missed.size, graduated: z.graduated, left });
+        store.set("quizlog", log.slice(-50));
+      }
       body.innerHTML = `<div class="panel stack quiz-end"><h3>จบรอบแล้ว</h3>
         <p>ตอบถูกครั้งแรก ${z.right} คำ · ตอบผิดแล้วต้องทำซ้ำ ${z.missed.size} คำ${deck === "review" ? ` · ออกจากกล่องทวน ${z.graduated} คำ` : ""}</p>
         <p class="muted small">ตอนนี้เหลือคำที่ยังจำไม่ได้ ${left} คำ</p>
@@ -380,7 +397,7 @@
     const it = z.queue[z.i];
     if (!z.opts) z.opts = quizOptions(it);
     const done = z.picked != null;
-    const hits = fc.hits[it.w] || 0;
+    const hits = store.get("hits", {})[it.w] || 0;
     body.innerHTML = `<div class="panel stack quiz">
       <div class="row" style="justify-content:space-between"><span class="card-meta">ข้อ ${z.i + 1} / ${z.queue.length} · ถูก ${z.right} · ผิด ${z.wrong}</span>
         ${deck === "review" ? `<span class="card-meta">${"●".repeat(Math.min(hits, REVIEW_HITS))}${"○".repeat(Math.max(0, REVIEW_HITS - hits))}</span>` : ""}</div>
@@ -395,13 +412,15 @@
       z.picked = j;
       const ok = z.opts[j] === it;
       const k = store.get("known", {});
+      const h = store.get("hits", {}); // correct answers in a row, saved so progress survives reloads and devices
       if (ok) {
         if (!z.missed.has(it.w)) z.right++;
-        fc.hits[it.w] = (fc.hits[it.w] || 0) + 1;
-        if (k[it.w] === 0) { if (fc.hits[it.w] >= REVIEW_HITS) { k[it.w] = 1; z.graduated++; store.set("known", k); } }
+        h[it.w] = (h[it.w] || 0) + 1;
+        if (k[it.w] === 0) { if (h[it.w] >= REVIEW_HITS) { k[it.w] = 1; z.graduated++; store.set("known", k); } }
         else if (k[it.w] !== 1) { k[it.w] = 1; store.set("known", k); }
+        store.set("hits", h);
       } else {
-        z.wrong++; z.missed.add(it.w); fc.hits[it.w] = 0;
+        z.wrong++; z.missed.add(it.w); h[it.w] = 0; store.set("hits", h);
         z.queue.push(it);
         if (k[it.w] !== 0) { k[it.w] = 0; store.set("known", k); }
       }
